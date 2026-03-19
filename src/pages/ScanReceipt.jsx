@@ -120,7 +120,7 @@ export default function ScanReceipt({ onItemSaved }) {
         ref={fileInputRef}
         type="file"
         accept="image/*"
-        capture="environment"
+        
         onChange={handleCapture}
         style={{ display: "none" }}
       />
