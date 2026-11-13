@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="light dark" />
+    <link rel="icon" type="image/png" href="./icon-192.png" />
+    <style>
+      :root { --paper: #f3f5f1; --ink: #131c33; --ink-2: #55607a; --blue: #2447d6; --line: #dce1d9; }
+      @media (prefers-color-scheme: dark) { :root { --paper: #0e1524; --ink: #eef1f8; --ink-2: #a5afc6; --blue: #8ea5ff; --line: #2b3755; } }
+      body { margin: 0; background: var(--paper); color: var(--ink); font: 17px/1.55 -apple-system, "SF Pro Text", Inter, system-ui, sans-serif; }
+      main { max-width: 680px; margin: 0 auto; padding: 48px 22px 80px; }
+      .brand { font-weight: 700; color: var(--blue); text-decoration: none; }
+      h1 { font-size: 34px; line-height: 1.1; letter-spacing: -0.02em; margin: 18px 0 6px; }
+      h2 { font-size: 21px; margin: 36px 0 8px; }
+      p, li { color: var(--ink-2); } strong { color: var(--ink); }
+      a { color: var(--blue); } ul { padding-left: 22px; }
+      .lead { font-size: 19px; color: var(--ink); } .meta { font-size: 15px; }
+      footer { margin-top: 48px; padding-top: 18px; border-top: 1px solid var(--line); font-size: 15px; }
+    </style>
+    <title>Help and contact – Slipkeep</title>
+  </head>
+  <body>
+    <main>
+      <a class="brand" href="./">Slipkeep</a>
+      <h1>Help and contact</h1>
+      <p class="lead">Slipkeep keeps your receipts on your iPhone and reminds you before a warranty runs out.</p>
+
+      <h2>Contact</h2>
+      <p>Report a problem or ask a question on the <a href="https://github.com/arashdeepshergill13/warranty-wallet/issues">support board</a>. Please don&rsquo;t post receipt photos or personal details there.</p>
+
+      <h2>Common questions</h2>
+      <p><strong>The app read my receipt wrong.</strong><br />Receipts vary a lot. Every detail can be corrected on the review screen before you save, and later with the pencil button on the item. A flat, well-lit receipt scans best.</p>
+      <p><strong>How does it know the warranty length?</strong><br />It doesn&rsquo;t. Unless your receipt states a warranty period, the app suggests a typical length for that kind of product and marks it as an estimate. Check the box, manual or manufacturer&rsquo;s website and set the real length.</p>
+      <p><strong>I&rsquo;m not getting reminders.</strong><br />Open iPhone Settings &rsaquo; Notifications &rsaquo; Slipkeep and allow notifications. Then check Settings inside the app to see that reminders are on.</p>
+      <p><strong>I got a new phone. How do I move my receipts?</strong><br />Restoring your new iPhone from an iCloud or computer backup brings the app&rsquo;s data with it. You can also use Settings &rsaquo; Back up everything on the old phone, send the file to the new phone, and use Restore from a backup.</p>
+      <p><strong>I deleted the app. Can you recover my receipts?</strong><br />No. Your data was only ever on your device, so there is no copy to recover unless you have a backup.</p>
+      <p><strong>Is my data safe?</strong><br />It never leaves your phone, iOS encrypts it at rest, and you can add a Face ID lock in Settings. See the <a href="./privacy.html">privacy policy</a>.</p>
+
+      <footer><a href="./privacy.html">Privacy policy</a></footer>
+    </main>
+  </body>
+</html>

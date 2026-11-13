@@ -1,0 +1,16 @@
+{
+  "name": "wallet-native",
+  "version": "1.0.0",
+  "private": true,
+  "description": "On-device receipt scanning, text recognition and app lock for the app in this repository.",
+  "main": "index.js",
+  "files": ["index.js", "Package.swift", "ios/"],
+  "capacitor": {
+    "ios": {
+      "src": "ios"
+    }
+  },
+  "peerDependencies": {
+    "@capacitor/core": ">=8.0.0"
+  }
+}

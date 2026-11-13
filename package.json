@@ -1,30 +1,29 @@
 {
-  "name": "app",
+  "name": "slipkeep",
   "private": true,
-  "version": "0.0.0",
+  "version": "1.0.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "vite build",
-    "lint": "eslint .",
-    "preview": "vite preview"
+    "build": "vite build && node scripts/check-build.mjs",
+    "preview": "vite preview",
+    "test": "node --test \"tests/*.test.js\"",
+    "ios": "npm run build && npx cap sync ios && npx cap open ios",
+    "ios:setup": "bash scripts/setup-ios.sh"
   },
   "dependencies": {
-    "@supabase/supabase-js": "^2.99.2",
-    "browser-image-compression": "^2.0.2",
+    "@capacitor/core": "^8.0.0",
+    "@capacitor/filesystem": "^8.0.0",
+    "@capacitor/ios": "^8.0.0",
+    "@capacitor/local-notifications": "^8.0.0",
+    "@capacitor/share": "^8.0.0",
     "react": "^19.2.4",
     "react-dom": "^19.2.4",
-    "react-router-dom": "^7.13.1"
+    "wallet-native": "file:./plugins/wallet-native"
   },
   "devDependencies": {
-    "@eslint/js": "^9.39.4",
-    "@types/react": "^19.2.14",
-    "@types/react-dom": "^19.2.3",
+    "@capacitor/cli": "^8.0.0",
     "@vitejs/plugin-react": "^6.0.0",
-    "eslint": "^9.39.4",
-    "eslint-plugin-react-hooks": "^7.0.1",
-    "eslint-plugin-react-refresh": "^0.5.2",
-    "globals": "^17.4.0",
     "vite": "^8.0.0"
   }
 }

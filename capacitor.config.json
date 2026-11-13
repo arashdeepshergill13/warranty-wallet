@@ -1,0 +1,10 @@
+{
+  "appId": "com.arashdeepshergill.slipkeep",
+  "appName": "Slipkeep",
+  "webDir": "dist",
+  "ios": {
+    "contentInset": "never",
+    "backgroundColor": "#F3F5F1",
+    "allowsLinkPreview": false
+  }
+}
