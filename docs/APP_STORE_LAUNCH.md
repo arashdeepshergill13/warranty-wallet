@@ -1,4 +1,4 @@
-# Getting Slipkeep onto the App Store
+# Getting Backed onto the App Store
 
 Everything that can be prepared ahead of time is in this repository: the app, the icon, the screenshots, the privacy policy and the listing text. What is left are the steps Apple only lets the account owner do, on a Mac. Work through them in order. Budget an evening for steps 1 to 5, then Apple's review usually takes a day or two.
 
@@ -11,7 +11,7 @@ Everything that can be prepared ahead of time is in this repository: the app, th
 | Your iPhone and its cable | The scanner and Face ID only work on a real phone, not the simulator. |
 | Node 22 or later | You already have it. Check with `node -v`. |
 
-**About the name.** There are already two apps called "Warranty Wallet" on the App Store, and Apple does not allow duplicate names. This build is named **Slipkeep**. If you want something else, change it in three places: `src/lib/config.js`, `capacitor.config.json` (`appName`), and the two pages in `public/`. App Store Connect tells you straight away if a name is taken.
+**About the name.** "Warranty Wallet" is already taken on the App Store, and so is plain "Backed" (a fashion app from 2023). Apple requires unique names, so the store listing is **Backed: Warranty Tracker**, while the label under the icon on the home screen is just **Backed**. If App Store Connect says the listing name is taken, try "Backed: Receipts & Warranty". To change the name in the app itself, edit `src/lib/config.js`, `capacitor.config.json` (`appName`) and the two pages in `public/`.
 
 ## 1. Build the iPhone project (10 minutes)
 
@@ -36,7 +36,7 @@ git add -A && git commit -m "Add iOS project" && git push
 
 1. In the left sidebar click the blue **App** icon at the top, then the **App** target, then the **Signing & Capabilities** tab.
 2. Tick **Automatically manage signing** and pick your name under **Team**.
-3. **Bundle Identifier** is `com.arashdeepshergill.slipkeep`. Keep it or change it now; it can never change after the first upload. If you change it, change `appId` in `capacitor.config.json` to match.
+3. **Bundle Identifier** is `com.arashdeepshergill.backed`. Keep it or change it now; it can never change after the first upload. If you change it, change `appId` in `capacitor.config.json` to match.
 4. Click **+ Capability**, choose **Data Protection**. Leave it on "Complete Protection". This keeps the receipt files encrypted whenever the phone is locked.
 5. Privacy manifest: if the setup script printed "One manual step", drag `ios/App/App/PrivacyInfo.xcprivacy` from Finder into the **App** folder in Xcode's sidebar and tick the **App** target in the dialog.
 6. Plug in your iPhone, pick it in the device menu at the top, and press the Run button. The first time, the phone asks you to trust the developer in Settings > General > VPN & Device Management.
@@ -76,10 +76,10 @@ At [appstoreconnect.apple.com](https://appstoreconnect.apple.com) choose **Apps 
 | Field | Value |
 | --- | --- |
 | Platform | iOS |
-| Name | Slipkeep |
+| Name | Backed: Warranty Tracker |
 | Primary language | English (Canada) or English (U.S.) |
 | Bundle ID | the one from step 2 (it appears in the list after your first build in Xcode) |
-| SKU | slipkeep-001 |
+| SKU | backed-001 |
 
 Then fill in the version page. Copy and paste from here.
 
@@ -98,9 +98,9 @@ Scan a receipt once. Get a reminder before the warranty runs out. Everything sta
 **Description**
 
 ```
-You bought it, it broke, and the receipt is gone. Slipkeep makes sure that doesn't cost you money again.
+You bought it, it broke, and the receipt is gone. Backed makes sure that doesn't cost you money again.
 
-Scan a receipt when you buy something worth protecting. Slipkeep reads the store, date and price, keeps the photo, and reminds you before the warranty runs out, while you can still make a claim.
+Scan a receipt when you buy something worth protecting. Backed reads the store, date and price, keeps the photo, and reminds you before the warranty runs out, while you can still make a claim.
 
 SCAN IN SECONDS
 • Point the camera at a receipt. The page is found and straightened automatically.
@@ -125,7 +125,7 @@ PRIVATE BY DESIGN
 • Optional Face ID lock.
 • Included in your own iPhone backup. Export a full backup or a spreadsheet whenever you like.
 
-A note on warranty lengths: when a receipt doesn't state the warranty period, Slipkeep suggests a typical length for that kind of product and marks it as an estimate. Check the box or manual and set the real length.
+A note on warranty lengths: when a receipt doesn't state the warranty period, Backed suggests a typical length for that kind of product and marks it as an estimate. Check the box or manual and set the real length.
 ```
 
 **Keywords** (99 of 100 characters)
@@ -156,7 +156,7 @@ warranty,receipt,scanner,tracker,reminder,expiry,guarantee,proof of purchase,app
 **App Review Information.** Sign-in required: No. Paste this into Notes:
 
 ```
-Slipkeep is a receipt and warranty tracker that works entirely on the device.
+Backed is a receipt and warranty tracker that works entirely on the device.
 
 • No account or login. Open the app and tap "Get started".
 • To test: tap "Add a receipt", then "Scan a receipt" and photograph any receipt, or tap "Type it in" to add an item by hand.

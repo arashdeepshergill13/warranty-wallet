@@ -1,6 +1,6 @@
 {
-  "appId": "com.arashdeepshergill.slipkeep",
-  "appName": "Slipkeep",
+  "appId": "com.arashdeepshergill.backed",
+  "appName": "Backed",
   "webDir": "dist",
   "ios": {
     "contentInset": "never",

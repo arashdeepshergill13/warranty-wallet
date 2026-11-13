@@ -18,4 +18,4 @@ await esbuild.build({
   },
 });
 fs.writeFileSync(path.join(root, 'dev/out/index.html'),
-  '<!doctype html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"><link rel="stylesheet" href="main.css"><title>Slipkeep</title></head><body><div id="root"></div><script src="main.js"></script></body></html>');
+  '<!doctype html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"><link rel="stylesheet" href="main.css"><title>Backed</title></head><body><div id="root"></div><script src="main.js"></script></body></html>');

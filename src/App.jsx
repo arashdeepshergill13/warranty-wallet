@@ -23,7 +23,7 @@ function Welcome({ onDone }) {
     <div className="screen welcome">
       <div className="welcome-body">
         <span className="brand brand-big">{APP_NAME}</span>
-        <h1>Never lose a warranty claim to a lost receipt.</h1>
+        <h1>Everything you buy, backed.</h1>
         <ul className="welcome-points">
           {points.map(([icon, title, body]) => (
             <li key={title}>

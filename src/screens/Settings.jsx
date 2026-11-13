@@ -160,6 +160,7 @@ export default function Settings({ settings, itemCount, onBack, notify }) {
 
       <h2 className="group-title">Your data</h2>
       <div className="group">
+        <Row title="Moving to a new phone" detail="How to bring your receipts with you." onClick={() => setSheet('move')} />
         <Row title="Back up everything" detail="One file with every item and photo. Keep it anywhere you like." onClick={() => run(exportBackup)} />
         <Row title="Restore from a backup" detail="Adds the items from a backup file." onClick={() => restoreInput.current?.click()} />
         <Row title="Export a spreadsheet" detail="A CSV list of your items, without photos." onClick={() => run(exportSpreadsheet)} />
@@ -192,6 +193,25 @@ export default function Settings({ settings, itemCount, onBack, notify }) {
       {sheet === 'privacy' && (
         <Sheet title="Your data stays on this phone" onClose={() => setSheet(null)}>
           <PrivacySummary />
+          <button className="btn btn-primary btn-wide" onClick={() => setSheet(null)}>
+            Done
+          </button>
+        </Sheet>
+      )}
+      {sheet === 'move' && (
+        <Sheet title="Moving to a new phone" onClose={() => setSheet(null)}>
+          <div className="prose">
+            <p>
+              <b>Usually there is nothing to do.</b> When you set up a new iPhone from your iCloud or computer backup, your receipts come across with everything else.
+            </p>
+            <p>
+              <b>To move them yourself:</b>
+            </p>
+            <ul>
+              <li>On this phone, tap Back up everything and save the file to Files or iCloud Drive, or AirDrop it.</li>
+              <li>On the new phone, install {APP_NAME}, open Settings and tap Restore from a backup.</li>
+            </ul>
+          </div>
           <button className="btn btn-primary btn-wide" onClick={() => setSheet(null)}>
             Done
           </button>

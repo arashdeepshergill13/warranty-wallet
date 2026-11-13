@@ -1,4 +1,4 @@
-// Builds a single-file browser demo of the app (dev/out/demo/slipkeep-demo.html).
+// Builds a single-file browser demo of the app (dev/out/demo/backed-demo.html).
 // The native layer is replaced by dev/demo-setup.js. Not used for the real app.
 import { createRequire } from 'node:module';
 import { fileURLToPath } from 'node:url';
@@ -35,12 +35,12 @@ css += `
 `;
 
 fs.mkdirSync(out, { recursive: true });
-const html = `<title>Slipkeep Demo</title>
-<meta name="description" content="Browser demo of the Slipkeep receipt and warranty app.">
+const html = `<title>Backed Demo</title>
+<meta name="description" content="Browser demo of the Backed receipt and warranty app.">
 <style>${css}</style>
 <div id="root"></div>
 <script>${js}</script>
 `;
-const file = path.join(out, 'slipkeep-demo.html');
+const file = path.join(out, 'backed-demo.html');
 fs.writeFileSync(file, html);
 console.log(file, Math.round(html.length / 1024) + 'KB');

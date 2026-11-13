@@ -1,4 +1,4 @@
-# Slipkeep
+# Backed
 
 An iPhone app that keeps receipts and reminds you before a warranty runs out.
 Everything is stored on the phone. There is no server, no account and no network access.
