@@ -1,3 +1,11 @@
 node_modules
 dist
 .env
+.env.*
+.DS_Store
+ios/App/Pods
+ios/App/App/public
+ios/DerivedData
+*.xcuserstate
+xcuserdata
+dev/out
