@@ -1,0 +1,10 @@
+{
+  "appId": "com.arashdeepshergill.backed",
+  "appName": "Backed",
+  "webDir": "dist",
+  "ios": {
+    "contentInset": "never",
+    "backgroundColor": "#F2F2F7",
+    "allowsLinkPreview": false
+  }
+}
