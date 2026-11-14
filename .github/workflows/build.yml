@@ -1,0 +1,53 @@
+# Builds the app on every push: the web build and tests on Linux, and the
+# iPhone app itself on a Mac with Xcode (compiled without signing). If this
+# passes, the steps in docs/APP_STORE_LAUNCH.md will work on your own Mac too.
+name: Build
+
+on:
+  push:
+    branches: [main, ios-local-first]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  web:
+    name: Tests and web build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm install --no-audit --no-fund
+      - run: npm test
+      - run: npm run build
+
+  ios:
+    name: iPhone app (Xcode)
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Use the newest Xcode on the runner
+        shell: bash
+        run: |
+          latest=$(ls -d /Applications/Xcode_*.app | grep -vi beta | sort -V | tail -1)
+          sudo xcode-select -s "$latest"
+          xcodebuild -version
+      - run: npm install --no-audit --no-fund
+      - run: npm run build
+      - name: Create the Xcode project
+        run: |
+          npx cap add ios --packagemanager SPM
+          npx cap sync ios
+          node scripts/apply-ios-resources.mjs
+      - name: Compile for iPhone
+        shell: bash
+        run: |
+          xcodebuild -project ios/App/App.xcodeproj -scheme App -configuration Release \
+            -destination 'generic/platform=iOS' CODE_SIGNING_ALLOWED=NO -quiet build
