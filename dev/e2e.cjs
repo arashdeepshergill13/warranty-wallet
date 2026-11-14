@@ -95,7 +95,12 @@ function seedVault() {
     await page.goto(URL_);
     return { ctx, page, errors };
   };
-  const shot = (page, name) => page.screenshot({ path: path.join(SHOTS, `${name}.png`), animations: 'disabled' });
+  const shot = async (page, name) => {
+    // Let sliding screens come to rest before the picture is taken.
+    await page.waitForFunction(() => !document.querySelector('.is-offstage, .is-leaving'));
+    await page.waitForTimeout(520);
+    await page.screenshot({ path: path.join(SHOTS, `${name}.png`), animations: 'disabled' });
+  };
   const data = (page) => page.evaluate(() => JSON.parse(window.__fs.get('LIBRARY/vault/data.json')));
 
   // ---- 1. First run in a plain browser: welcome, empty vault, add by hand ----
@@ -106,26 +111,26 @@ function seedVault() {
     await page.getByRole('button', { name: 'Get started' }).click();
     await page.getByText('Add your first receipt').waitFor();
     await shot(page, '02-empty');
-    await page.getByRole('button', { name: 'Add a receipt' }).click();
+    await page.getByRole('button', { name: 'Add receipt' }).click();
     assert.equal(await page.getByText('Scan a receipt').count(), 0, 'no scanner offered in a browser');
     await page.getByText('Type it in').click();
-    await page.getByRole('button', { name: 'Save item' }).click();
+    await page.getByRole('button', { name: 'Save', exact: true }).click();
     await page.getByText('Add a name so you can find this later.').waitFor();
     await page.getByPlaceholder('Dyson V15 vacuum').fill('Stand mixer');
     await page.getByPlaceholder('Best Buy').fill('Harbour Home');
     await page.getByPlaceholder('0.00').fill('abc');
-    await page.getByRole('button', { name: 'Save item' }).click();
+    await page.getByRole('button', { name: 'Save', exact: true }).click();
     await page.getByText('Use numbers only, like 399.99.').waitFor();
     await page.getByPlaceholder('0.00').fill('279.5');
     await page.getByRole('button', { name: '2 years' }).click();
-    await page.getByRole('button', { name: 'Save item' }).click();
+    await page.getByRole('button', { name: 'Save', exact: true }).click();
     await page.getByText('Share proof of purchase').waitFor();
     const saved = (await data(page)).items[0];
     assert.equal(saved.productName, 'Stand mixer'); assert.equal(saved.price, 279.5); assert.equal(saved.warrantyMonths, 24);
     assert.equal(saved.warrantyEstimated, false); assert.ok(saved.expiryDate > saved.purchaseDate);
     assert.equal(await page.getByText('Want a reminder').count(), 0, 'no reminder prompt outside the iPhone app');
     await page.reload();
-    await page.getByText('Your 1 item is covered.').waitFor();
+    await page.getByText('1 item covered, worth $280').waitFor();
     assert.deepEqual(errors, []);
     await ctx.close();
   }
@@ -134,20 +139,21 @@ function seedVault() {
   {
     const { ctx, page, errors } = await open({ native: true });
     await page.getByRole('button', { name: 'Get started' }).click();
-    await page.getByRole('button', { name: 'Add a receipt' }).click();
+    await page.getByRole('button', { name: 'Add receipt' }).click();
     await shot(page, '03-add-sheet');
-    await page.getByText('Scan a receipt').click();
+    await page.getByRole('button', { name: 'Scan a receipt' }).click();
     await page.getByText('Which item is the warranty for?').waitFor();
     assert.equal(await page.getByPlaceholder('Dyson V15 vacuum').inputValue(), 'Noise-Cancelling Headphones');
     assert.equal(await page.getByPlaceholder('Best Buy').inputValue(), 'Northgate Electronics');
     assert.equal(await page.getByPlaceholder('0.00').inputValue(), '329.99');
     assert.equal(await page.locator('input[type=date]').inputValue(), '2026-11-02');
     assert.equal(await page.locator('.field select').inputValue(), 'electronics');
+    assert.ok((await page.evaluate(() => window.__haptics || [])).includes('SUCCESS'), 'a successful scan gives a haptic tap');
     await shot(page, '04-review');
     await page.getByRole('button', { name: /USB-C Cable/ }).click();
     assert.equal(await page.getByPlaceholder('0.00').inputValue(), '14.99');
     await page.getByRole('button', { name: /Noise-Cancelling/ }).click();
-    await page.getByRole('button', { name: 'Save item' }).click();
+    await page.getByRole('button', { name: 'Save', exact: true }).click();
     await page.getByText('Want a reminder before this runs out?').waitFor();
     await shot(page, '05-reminder-prompt');
     await page.getByRole('button', { name: 'Turn on reminders' }).click();
@@ -162,7 +168,7 @@ function seedVault() {
 
     await page.getByRole('button', { name: 'Edit' }).click();
     await page.getByRole('button', { name: 'None' }).click();
-    await page.getByRole('button', { name: 'Save changes' }).click();
+    await page.getByRole('button', { name: 'Save', exact: true }).click();
     await page.getByText('Kept for your records.').waitFor();
     await page.waitForFunction(() => window.__notifications.pending.length === 0);
     d = await data(page);
@@ -173,9 +179,10 @@ function seedVault() {
     const shared = await page.evaluate(() => window.__shared[0]);
     assert.ok(shared.text.includes('Northgate Electronics') && shared.files.length === 1);
 
-    await page.getByRole('button', { name: 'Delete item' }).first().click();
+    await page.getByRole('button', { name: 'Delete item' }).click();
     await page.getByRole('dialog').getByRole('button', { name: 'Delete item' }).click();
-    await page.getByText('Add your first receipt').waitFor();
+    await page.getByRole('heading', { name: 'Add your first receipt' }).waitFor();
+    await page.waitForFunction(() => document.querySelectorAll('.layer').length === 1);
     const left = await page.evaluate(() => [...window.__fs.keys()].filter((k) => k.includes('receipts/')));
     assert.deepEqual(left, [], 'deleting an item removes its photo file');
     assert.deepEqual(errors, []);
@@ -185,16 +192,14 @@ function seedVault() {
   // ---- 3. A full vault: screens, search, settings, lock, backup, recovery ----
   {
     const { ctx, page, errors } = await open({ native: true, seed: true });
-    await page.getByText('6 of your 7 items are covered.').waitFor();
+    await page.getByText('6 items covered, worth $2,431').waitFor();
     await shot(page, '06-vault');
-    await page.getByPlaceholder('Search items and stores').fill('maple');
+    await page.getByRole('searchbox').fill('maple');
     assert.equal(await page.locator('.card').count(), 1);
-    await page.getByPlaceholder('Search items and stores').fill('');
-    await page.getByRole('tab', { name: 'Ending soon' }).click();
-    assert.equal(await page.locator('.card').count(), 2);
-    await page.getByRole('tab', { name: 'Ended' }).click();
-    assert.equal(await page.locator('.card').count(), 1);
-    await page.getByRole('tab', { name: 'All' }).click();
+    await page.getByRole('searchbox').fill('');
+    const sections = await page.locator('.section-title').allTextContents();
+    assert.deepEqual(sections, ['Ending soon', 'Covered', 'Ended']);
+    assert.equal(await page.locator('.group-wrap', { hasText: 'Ending soon' }).locator('.card').count(), 2);
     await page.locator('.card', { hasText: 'Cordless vacuum' }).click();
     await page.locator('.receipt-paper img').waitFor();
     await shot(page, '07-detail');
@@ -210,7 +215,7 @@ function seedVault() {
     await page.getByRole('button', { name: 'Settings' }).click();
     await page.getByText('Allow notifications').waitFor();
     await shot(page, '09-settings');
-    await page.getByText('Allow notifications').click();
+    await page.getByRole('button', { name: 'Allow notifications' }).click();
     await page.waitForFunction(() => window.__notifications.pending.length > 0);
     const count = await page.evaluate(() => window.__notifications.pending.length);
     assert.ok(count > 5 && count <= 60, `sensible number of reminders queued (${count})`);
@@ -238,12 +243,12 @@ function seedVault() {
     await shot(page, '11-locked');
     await page.evaluate(() => { window.__failUnlock = false; localStorage.setItem('__fail', '0'); });
     await page.getByRole('button', { name: 'Unlock' }).click();
-    await page.getByText('6 of your 7 items are covered.').waitFor();
+    await page.getByText('6 items covered, worth $2,431').waitFor();
 
     // Damage the main data file: the spare copy must bring everything back.
     await page.evaluate(() => { const f = new Map(JSON.parse(localStorage.getItem('__fs'))); f.set('LIBRARY/vault/data.json', '{"items":[{"id":'); localStorage.setItem('__fs', JSON.stringify([...f])); });
     await page.reload();
-    await page.getByText('6 of your 7 items are covered.').waitFor();
+    await page.getByText('6 items covered, worth $2,431').waitFor();
 
     // A write failure is reported, not swallowed.
     await page.evaluate(() => { window.__failWrites = true; });
@@ -257,7 +262,7 @@ function seedVault() {
   // ---- 4. Dark mode, small phone, hostile data ----
   {
     const { ctx, page, errors } = await open({ native: true, seed: true, dark: true });
-    await page.getByText('6 of your 7 items are covered.').waitFor();
+    await page.getByText('6 items covered, worth $2,431').waitFor();
     await shot(page, '12-vault-dark');
     await page.locator('.card', { hasText: 'Running shoes' }).click();
     await page.locator('.receipt-paper img').waitFor();

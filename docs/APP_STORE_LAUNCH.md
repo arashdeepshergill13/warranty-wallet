@@ -54,6 +54,9 @@ The interface and the receipt-reading logic are covered by automated tests. Thes
 - [ ] With the lock on, the app's contents are hidden in the app switcher.
 - [ ] Settings > Back up everything opens the share sheet with a file.
 - [ ] Add an item whose warranty ends in two days. At 9 the next morning a reminder should arrive.
+- [ ] Dragging from the left edge of the screen goes back, and screens slide smoothly.
+- [ ] On the New item screen, the keyboard does not hide the field you are typing in.
+- [ ] You feel a light tap when a scan finishes and when you save.
 - [ ] Turn on Airplane Mode and use the app. Everything should still work.
 
 Scan five or six different receipts. If one reads badly, send Claude the photo and it can tune the reader.

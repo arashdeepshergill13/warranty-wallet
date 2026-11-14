@@ -9,7 +9,7 @@ Everything is stored on the phone. There is no server, no account and no network
 
 | Part | Where | Notes |
 | --- | --- | --- |
-| Interface | `src/` | React, built with Vite, shown in a native web view by Capacitor 8 |
+| Interface | `src/` | React, built with Vite, shown in a native web view by Capacitor 8. `src/components/nav.jsx` is the iPhone-style screen stack (slide transitions, edge-swipe back, large titles) |
 | Scanning, text recognition, Face ID | `plugins/wallet-native/` | One Swift file using Apple's VisionKit, Vision and LocalAuthentication |
 | Reading a receipt | `src/lib/parser.js` | Turns recognised text into store, date, items and prices, on the device |
 | Storage | `src/lib/storage.js` | JSON and JPEG files in the app's private Library folder; two copies of the data file so an interrupted save cannot lose it |

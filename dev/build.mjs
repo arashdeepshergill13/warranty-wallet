@@ -14,7 +14,7 @@ await esbuild.build({
   nodePaths: [tools], define: { 'process.env.NODE_ENV': '"production"' }, logLevel: 'info',
   alias: {
     '@capacitor/core': mock('core.js'), '@capacitor/filesystem': mock('filesystem.js'),
-    '@capacitor/local-notifications': mock('local-notifications.js'), '@capacitor/share': mock('share.js'),
+    '@capacitor/local-notifications': mock('local-notifications.js'), '@capacitor/share': mock('share.js'), '@capacitor/haptics': mock('haptics.js'),
   },
 });
 fs.writeFileSync(path.join(root, 'dev/out/index.html'),

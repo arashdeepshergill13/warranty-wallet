@@ -1,135 +1,105 @@
 import { useMemo, useState } from 'react';
-import { Icon, Countdown, CoverageBar, Thumb } from '../components/ui.jsx';
-import { coverage, formatDate, formatMoney, humanSpan, sortForVault, todayISO } from '../lib/warranty.js';
+import { Icon, CategoryTile, Ring, shortLeft } from '../components/ui.jsx';
+import { Screen, NavButton } from '../components/nav.jsx';
+import { categoryLabel, coverage, formatMoney, sortForVault, todayISO } from '../lib/warranty.js';
 import { APP_NAME } from '../lib/config.js';
 
-const FILTERS = [
-  { id: 'all', label: 'All' },
-  { id: 'soon', label: 'Ending soon' },
-  { id: 'active', label: 'Covered' },
-  { id: 'expired', label: 'Ended' },
+const SECTIONS = [
+  { state: 'soon', title: 'Ending soon' },
+  { state: 'active', title: 'Covered' },
+  { state: 'none', title: 'No warranty' },
+  { state: 'expired', title: 'Ended' },
 ];
 
-function summary(items, today) {
-  const states = items.map((i) => ({ item: i, cov: coverage(i, today) }));
-  const covered = states.filter((s) => s.cov.state === 'active' || s.cov.state === 'soon');
-  const next = covered.sort((a, b) => a.cov.daysLeft - b.cov.daysLeft)[0];
-  return { covered: covered.length, total: items.length, next };
+function summaryLine(items, today, currency) {
+  const covered = items.filter((i) => ['active', 'soon'].includes(coverage(i, today).state));
+  if (!covered.length) return 'Nothing is under warranty right now';
+  const worth = covered.reduce((sum, i) => sum + (i.price || 0), 0);
+  const count = covered.length === 1 ? '1 item covered' : `${covered.length} items covered`;
+  return worth > 0 ? `${count}, worth ${formatMoney(Math.round(worth), currency).replace(/[.,]00$/, '')}` : count;
 }
 
 export default function Vault({ items, settings, onOpen, onAdd, onSettings }) {
   const [query, setQuery] = useState('');
-  const [filter, setFilter] = useState('all');
   const today = todayISO();
-  const info = useMemo(() => summary(items, today), [items, today]);
 
-  const shown = useMemo(() => {
+  const sections = useMemo(() => {
     const q = query.trim().toLowerCase();
-    return sortForVault(items, today).filter((item) => {
-      const state = coverage(item, today).state;
-      if (filter === 'soon' && state !== 'soon') return false;
-      if (filter === 'active' && state !== 'active' && state !== 'soon') return false;
-      if (filter === 'expired' && state !== 'expired') return false;
-      if (!q) return true;
-      return [item.productName, item.storeName, item.serialNumber, item.notes].some((v) => (v || '').toLowerCase().includes(q));
-    });
-  }, [items, query, filter, today]);
+    const matches = sortForVault(items, today).filter(
+      (item) => !q || [item.productName, item.storeName, item.serialNumber, item.notes].some((v) => (v || '').toLowerCase().includes(q))
+    );
+    return SECTIONS.map((s) => ({ ...s, items: matches.filter((i) => coverage(i, today).state === s.state) })).filter((s) => s.items.length);
+  }, [items, query, today]);
 
   return (
-    <div className="screen">
-      <header className="vault-head">
-        <div className="vault-brand">
-          <span className="brand">{APP_NAME}</span>
-          <button className="iconbtn" onClick={onSettings} aria-label="Settings">
-            <Icon name="gear" />
-          </button>
-        </div>
-        {items.length > 0 && (
-          <>
-            <p className="vault-lead">
-              {info.covered === 0
-                ? 'Nothing is under warranty right now.'
-                : info.covered === info.total
-                  ? info.total === 1
-                    ? 'Your 1 item is covered.'
-                    : `All ${info.total} of your items are covered.`
-                  : `${info.covered} of your ${info.total} items are covered.`}
-            </p>
-            {info.next && (
-              <p className="vault-next">
-                Next to end: {info.next.item.productName},{' '}
-                {info.next.cov.daysLeft === 0 ? 'today' : info.next.cov.daysLeft === 1 ? 'tomorrow' : `in ${humanSpan(info.next.cov.daysLeft)}`}.
-              </p>
-            )}
-          </>
-        )}
-      </header>
-
+    <Screen
+      title={APP_NAME}
+      largeTitle
+      subtitle={items.length ? summaryLine(items, today, settings.currency) : null}
+      className="vault"
+      right={
+        <NavButton onClick={onSettings} label="Settings">
+          <Icon name="gear" size={23} />
+        </NavButton>
+      }
+      dock={
+        <button className="fab" onClick={onAdd}>
+          <Icon name="plus" size={20} weight={2.6} />
+          Add receipt
+        </button>
+      }
+    >
       {items.length === 0 ? (
         <section className="empty">
-          <div className="empty-slip" aria-hidden="true">
-            <span />
-            <span />
-            <span className="short" />
-            <b>Covered</b>
+          <div className="empty-art" aria-hidden="true">
+            <span className="empty-card is-back" />
+            <span className="empty-card is-mid" />
+            <span className="empty-card is-front">
+              <i />
+              <i />
+              <i className="short" />
+              <b>
+                <Icon name="check" size={18} weight={3} />
+              </b>
+            </span>
           </div>
           <h2>Add your first receipt</h2>
-          <p>Scan it once. You get a reminder before the warranty runs out, and the receipt is here when something breaks.</p>
+          <p>Scan it once. Get a reminder before the warranty runs out.</p>
         </section>
       ) : (
         <>
           {items.length > 3 && (
-            <div className="finder">
-              <label className="search">
-                <Icon name="search" size={18} />
-                <input
-                  type="search"
-                  value={query}
-                  onChange={(e) => setQuery(e.target.value)}
-                  placeholder="Search items and stores"
-                  aria-label="Search items and stores"
-                  autoCorrect="off"
-                />
-              </label>
-              <div className="chips" role="tablist" aria-label="Show">
-                {FILTERS.map((f) => (
-                  <button key={f.id} role="tab" aria-selected={filter === f.id} className={`chip${filter === f.id ? ' is-on' : ''}`} onClick={() => setFilter(f.id)}>
-                    {f.label}
-                  </button>
-                ))}
-              </div>
-            </div>
+            <label className="search">
+              <Icon name="search" size={17} weight={2.2} />
+              <input type="search" value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search" aria-label="Search items and stores" autoCorrect="off" enterKeyHint="search" />
+            </label>
           )}
-          <ul className="list">
-            {shown.map((item) => (
-              <li key={item.id}>
-                <button className="card" onClick={() => onOpen(item.id)}>
-                  <Thumb item={item} />
-                  <span className="card-main">
-                    <span className="card-name">{item.productName}</span>
-                    <span className="card-sub">
-                      {[item.storeName, item.price !== null ? formatMoney(item.price, settings.currency) : ''].filter(Boolean).join(', ') || 'No store added'}
-                    </span>
-                  </span>
-                  <span className="card-side">
-                    <Countdown item={item} today={today} />
-                    {item.expiryDate && <span className="card-date">{formatDate(item.expiryDate)}</span>}
-                  </span>
-                  <CoverageBar item={item} today={today} />
-                </button>
-              </li>
-            ))}
-          </ul>
-          {shown.length === 0 && <p className="none-found">Nothing matches. Try a different search or filter.</p>}
+          {sections.map((section) => (
+            <section key={section.state} className="group-wrap">
+              <h2 className="section-title">{section.title}</h2>
+              <ul className="group">
+                {section.items.map((item) => {
+                  const cov = coverage(item, today);
+                  return (
+                    <li key={item.id}>
+                      <button className="row is-tappable card" onClick={() => onOpen(item.id)}>
+                        <CategoryTile category={item.category} />
+                        <span className="card-main">
+                          <span className="card-name">{item.productName}</span>
+                          <span className="card-sub">{item.storeName || categoryLabel(item.category)}</span>
+                        </span>
+                        <span className={`card-left is-${cov.state}`}>{shortLeft(cov)}</span>
+                        <Ring item={item} today={today} />
+                      </button>
+                    </li>
+                  );
+                })}
+              </ul>
+            </section>
+          ))}
+          {sections.length === 0 && <p className="none-found">No results for “{query.trim()}”</p>}
         </>
       )}
-
-      <div className="dock">
-        <button className="btn btn-primary btn-wide" onClick={onAdd}>
-          <Icon name="plus" size={20} />
-          Add a receipt
-        </button>
-      </div>
-    </div>
+    </Screen>
   );
 }

@@ -3,32 +3,44 @@ import Vault from './screens/Vault.jsx';
 import ItemForm, { draftFromItem, draftFromScan, emptyDraft } from './screens/ItemForm.jsx';
 import Detail from './screens/Detail.jsx';
 import Settings from './screens/Settings.jsx';
-import { Icon, Sheet } from './components/ui.jsx';
+import { Icon, Sheet, Group, Row } from './components/ui.jsx';
+import { Layer } from './components/nav.jsx';
 import { deleteItem, getState, load, readImage, saveItem, subscribe, updateSettings } from './lib/storage.js';
-import { isNative, openAppSettings, recognizeText, scanDocument, scannerAvailable, setPrivacyScreen, unlock } from './lib/native.js';
+import { openAppSettings, recognizeText, scanDocument, scannerAvailable, setPrivacyScreen, unlock } from './lib/native.js';
 import { askForReminders, onReminderTapped, reminderPermission, syncReminders } from './lib/reminders.js';
 import { parseReceipt } from './lib/parser.js';
 import { fileToJpeg, makeThumb } from './lib/images.js';
+import { success, tap, warning } from './lib/haptics.js';
 import { APP_NAME } from './lib/config.js';
 
 const RELOCK_AFTER_MS = 30 * 1000;
+const SLIDE_MS = 460;
+const ROOT = { key: 0, name: 'vault', kind: 'root' };
+
+function AppMark({ size = 76 }) {
+  return (
+    <span className="app-mark" style={{ width: size, height: size, borderRadius: size * 0.225 }} aria-hidden="true">
+      <Icon name="shield" size={size * 0.58} weight={1.9} />
+    </span>
+  );
+}
 
 function Welcome({ onDone }) {
   const points = [
-    ['scan', 'Scan a receipt', 'The app reads the store, date and price for you.'],
-    ['bell', 'Get reminded in time', 'A nudge before each warranty runs out, while you can still claim.'],
-    ['phone', 'It all stays on your phone', 'No account, no cloud. The app can’t connect to the internet.'],
+    ['scan', 'Scan a receipt', 'The store, date and price are read for you.'],
+    ['bell', 'Get reminded in time', 'A nudge before each warranty runs out.'],
+    ['lock', 'Private by design', 'Everything stays on this iPhone. No account.'],
   ];
   return (
-    <div className="screen welcome">
+    <div className="welcome">
       <div className="welcome-body">
-        <span className="brand brand-big">{APP_NAME}</span>
+        <AppMark />
         <h1>Everything you buy, backed.</h1>
         <ul className="welcome-points">
           {points.map(([icon, title, body]) => (
             <li key={title}>
               <span className="welcome-icon">
-                <Icon name={icon} size={24} />
+                <Icon name={icon} size={30} weight={1.7} />
               </span>
               <span>
                 <b>{title}</b>
@@ -38,11 +50,9 @@ function Welcome({ onDone }) {
           ))}
         </ul>
       </div>
-      <div className="dock dock-static">
-        <button className="btn btn-primary btn-wide" onClick={onDone}>
-          Get started
-        </button>
-      </div>
+      <button className="btn btn-primary btn-wide" onClick={onDone}>
+        Get started
+      </button>
     </div>
   );
 }
@@ -58,13 +68,12 @@ function LockScreen({ onUnlock }) {
     attempt();
   }, [attempt]);
   return (
-    <div className="screen lock">
-      <span className="lock-icon">
-        <Icon name="lock" size={34} />
-      </span>
+    <div className="lock">
+      <AppMark />
       <h1>{APP_NAME} is locked</h1>
-      {failed && <p>That didn’t work. Try again.</p>}
+      <p>{failed ? 'That didn’t work. Try again.' : 'Unlock to see your receipts.'}</p>
       <button className="btn btn-primary" onClick={attempt}>
+        <Icon name="faceid" size={20} weight={2} />
         Unlock
       </button>
     </div>
@@ -74,27 +83,39 @@ function LockScreen({ onUnlock }) {
 export default function App() {
   const state = useSyncExternalStore(subscribe, getState);
   const { items, settings, ready } = state;
-  const [route, setRoute] = useState({ name: 'vault' });
+  const [stack, setStack] = useState([ROOT]);
   const [locked, setLocked] = useState(false);
   const [adding, setAdding] = useState(false);
   const [canScan, setCanScan] = useState(false);
   const [busy, setBusy] = useState('');
-  const [toast, setToast] = useState('');
+  const [toast, setToast] = useState(null);
   const [photo, setPhoto] = useState(null);
   const [preview, setPreview] = useState(null);
   const [prompt, setPrompt] = useState(null); // 'reminders' | 'camera'
   const photoInput = useRef(null);
   const hiddenAt = useRef(0);
+  const nextKey = useRef(1);
+  const toastTimer = useRef(0);
 
-  const notify = useCallback((message) => {
-    setToast(message);
-    window.clearTimeout(notify.timer);
-    notify.timer = window.setTimeout(() => setToast(''), 2600);
+  const notify = useCallback((message, good = false) => {
+    setToast({ message, good });
+    window.clearTimeout(toastTimer.current);
+    toastTimer.current = window.setTimeout(() => setToast(null), 2400);
   }, []);
 
-  const go = useCallback((next) => {
-    setRoute(next);
-    window.scrollTo(0, 0);
+  // ---- the stack of screens ----
+  const push = useCallback((entry) => {
+    setStack((s) => [...s, { ...entry, key: nextKey.current++ }]);
+  }, []);
+
+  // Slide screens away, then take them out of the stack.
+  const dismiss = useCallback((keys, patch) => {
+    setStack((s) => s.map((e) => (keys.includes(e.key) ? { ...e, ...patch, leaving: true } : e)));
+    window.setTimeout(() => setStack((s) => s.filter((e) => !keys.includes(e.key))), SLIDE_MS);
+  }, []);
+
+  const showItem = useCallback((id) => {
+    setStack([ROOT, { key: nextKey.current++, name: 'detail', kind: 'push', id }]);
   }, []);
 
   // Start up: read the vault, lock if asked to, find out what the phone can do.
@@ -106,11 +127,11 @@ export default function App() {
       .catch(() => notify('Could not open your saved items.'));
     scannerAvailable().then(setCanScan);
     let stop = () => {};
-    onReminderTapped((id) => go({ name: 'detail', id })).then((off) => {
+    onReminderTapped(showItem).then((off) => {
       stop = off;
     });
     return () => stop();
-  }, [go, notify]);
+  }, [showItem, notify]);
 
   // Lock again after the app has been in the background for a while.
   useEffect(() => {
@@ -133,18 +154,20 @@ export default function App() {
     if (ready) syncReminders(items, settings);
   }, [ready, items, settings]);
 
+  // ---- adding and editing ----
   const openDraft = useCallback(
-    async (draft) => {
+    (draft) => {
       setPreview(draft.images?.length ? `data:image/jpeg;base64,${draft.images[0]}` : null);
-      go({ name: 'form', draft });
+      push({ name: 'form', kind: 'modal', draft });
     },
-    [go]
+    [push]
   );
 
-  const readPages = async (pages) => {
+  const readPages = (pages) => {
     const lines = pages.flatMap((page, index) => (page.lines || []).map((l) => ({ ...l, y: (Number(l.y) || 0) + index })));
     const parsed = parseReceipt(lines, { order: settings.dateOrder });
-    await openDraft(draftFromScan(parsed, pages.map((p) => p.image)));
+    if (parsed.foundText) success();
+    openDraft(draftFromScan(parsed, pages.map((p) => p.image)));
   };
 
   const startScan = async () => {
@@ -152,8 +175,8 @@ export default function App() {
     try {
       const result = await scanDocument();
       if (result.cancelled || !result.pages.length) return;
-      setBusy('Reading your receipt');
-      await readPages(result.pages);
+      setBusy('Reading receipt');
+      readPages(result.pages);
     } catch (err) {
       if (err?.code === 'CAMERA_DENIED') setPrompt('camera');
       else notify('The scan did not finish. Try again.');
@@ -167,10 +190,10 @@ export default function App() {
     e.target.value = '';
     setAdding(false);
     if (!file) return;
-    setBusy('Reading your receipt');
+    setBusy('Reading receipt');
     try {
       const image = await fileToJpeg(file);
-      await readPages([{ image, lines: await recognizeText(image) }]);
+      readPages([{ image, lines: await recognizeText(image) }]);
     } catch (err) {
       notify(err?.message || 'That photo could not be opened.');
     } finally {
@@ -183,123 +206,129 @@ export default function App() {
     openDraft(emptyDraft());
   };
 
-  const editItem = async (item) => {
+  const editItem = (item) => {
     setPreview(item.thumb || null);
-    go({ name: 'form', draft: draftFromItem(item) });
+    push({ name: 'form', kind: 'modal', draft: draftFromItem(item) });
     if (item.images[0]) readImage(item.images[0]).then(setPreview).catch(() => {});
   };
 
-  const save = async (fields) => {
-    const draft = route.draft;
+  const save = async (entry, fields) => {
+    const { draft } = entry;
     try {
       const thumb = draft.images?.length ? await makeThumb(draft.images[0]).catch(() => '') : fields.thumb || '';
       const item = await saveItem({ ...fields, thumb }, draft.images);
-      go({ name: 'detail', id: item.id });
+      success();
+      if (draft.isNew) {
+        // Put the new item's page underneath, so it is there when the form slides away.
+        setStack((s) => {
+          const at = s.findIndex((e) => e.key === entry.key);
+          const page = { key: nextKey.current++, name: 'detail', kind: 'push', id: item.id, immediate: true };
+          return at === -1 ? [...s, page] : [...s.slice(0, at), page, ...s.slice(at)];
+        });
+      }
+      dismiss([entry.key]);
       const offerReminders = draft.isNew && item.expiryDate && settings.remindersOn && (await reminderPermission()) === 'prompt';
       if (offerReminders) setPrompt('reminders');
-      else notify(draft.isNew ? 'Saved' : 'Changes saved');
+      else notify(draft.isNew ? 'Saved' : 'Changes saved', true);
     } catch {
       notify('Could not save. Check that your phone has free space.');
     }
   };
 
-  const remove = async (id) => {
-    await deleteItem(id);
-    go({ name: 'vault' });
-    notify('Deleted');
+  const remove = async (entry, item) => {
+    warning();
+    dismiss(
+      stack.filter((e) => e.kind !== 'root').map((e) => e.key),
+      { snapshot: item }
+    );
+    await deleteItem(item.id);
+    notify('Deleted', true);
   };
 
-  if (!ready) return <div className="screen boot" aria-busy="true" />;
+  if (!ready) return <div className="boot" aria-busy="true" />;
   if (locked) return <LockScreen onUnlock={() => setLocked(false)} />;
   if (!settings.onboarded) return <Welcome onDone={() => updateSettings({ onboarded: true })} />;
 
-  const current = route.name === 'detail' ? items.find((i) => i.id === route.id) : null;
+  let topIndex = 0;
+  stack.forEach((e, i) => {
+    if (!e.leaving) topIndex = i;
+  });
+
+  const renderScreen = (entry) => {
+    const back = () => dismiss([entry.key]);
+    if (entry.name === 'vault') {
+      return (
+        <Vault
+          items={items}
+          settings={settings}
+          onOpen={(id) => push({ name: 'detail', kind: 'push', id })}
+          onAdd={() => {
+            tap();
+            setAdding(true);
+          }}
+          onSettings={() => push({ name: 'settings', kind: 'push' })}
+        />
+      );
+    }
+    if (entry.name === 'detail') {
+      const item = items.find((i) => i.id === entry.id) || entry.snapshot;
+      if (!item) return null;
+      return <Detail item={item} settings={settings} onBack={back} onEdit={() => editItem(item)} onDelete={() => remove(entry, item)} onViewPhoto={setPhoto} notify={notify} />;
+    }
+    if (entry.name === 'form') {
+      return <ItemForm draft={entry.draft} settings={settings} preview={preview} onViewPhoto={() => setPhoto(preview)} onSave={(fields) => save(entry, fields)} onCancel={back} />;
+    }
+    return <Settings settings={settings} itemCount={items.length} onBack={back} notify={notify} />;
+  };
 
   return (
-    <>
-      {state.saveError && <div className="banner">Changes are not being saved. Free up some space on your phone, then reopen the app.</div>}
+    <div className="app">
+      {stack.map((entry, i) => (
+        <Layer
+          key={entry.key}
+          kind={entry.kind}
+          immediate={entry.immediate}
+          position={entry.leaving ? 'leaving' : i === topIndex ? 'top' : i === topIndex - 1 ? 'under' : 'buried'}
+          coveredBy={stack[topIndex].kind}
+          onBack={entry.kind === 'push' ? () => dismiss([entry.key]) : undefined}
+        >
+          {renderScreen(entry)}
+        </Layer>
+      ))}
 
-      {route.name === 'vault' || (route.name === 'detail' && !current) ? (
-        <Vault items={items} settings={settings} onOpen={(id) => go({ name: 'detail', id })} onAdd={() => setAdding(true)} onSettings={() => go({ name: 'settings' })} />
-      ) : route.name === 'detail' ? (
-        <Detail
-          key={current.id}
-          item={current}
-          settings={settings}
-          onBack={() => go({ name: 'vault' })}
-          onEdit={() => editItem(current)}
-          onDelete={() => remove(current.id)}
-          onViewPhoto={setPhoto}
-          notify={notify}
-        />
-      ) : route.name === 'form' ? (
-        <ItemForm
-          draft={route.draft}
-          settings={settings}
-          preview={preview}
-          onViewPhoto={() => setPhoto(preview)}
-          onSave={save}
-          onCancel={() => go(route.draft.fields.id ? { name: 'detail', id: route.draft.fields.id } : { name: 'vault' })}
-        />
-      ) : (
-        <Settings settings={settings} itemCount={items.length} onBack={() => go({ name: 'vault' })} notify={notify} />
-      )}
+      {state.saveError && <div className="banner">Changes are not being saved. Free up some space on your phone, then reopen the app.</div>}
 
       <input ref={photoInput} type="file" accept="image/*" hidden onChange={startPhoto} />
 
       {adding && (
         <Sheet title="Add a receipt" onClose={() => setAdding(false)}>
-          <div className="options">
-            {canScan && (
-              <button className="option" onClick={startScan}>
-                <span className="option-icon">
-                  <Icon name="scan" size={24} />
-                </span>
-                <span>
-                  <b>Scan a receipt</b>
-                  Point the camera at it. The page is found and straightened for you.
-                </span>
-              </button>
-            )}
-            <button className="option" onClick={() => photoInput.current?.click()}>
-              <span className="option-icon">
-                <Icon name="photo" size={24} />
-              </span>
-              <span>
-                <b>Choose a photo</b>
-                {isNative ? 'Use a photo or screenshot you already have.' : 'Attach a photo of the receipt.'}
-              </span>
-            </button>
-            <button className="option" onClick={startManual}>
-              <span className="option-icon">
-                <Icon name="pencil" size={24} />
-              </span>
-              <span>
-                <b>Type it in</b>
-                No receipt to hand? Add the details yourself.
-              </span>
-            </button>
-          </div>
+          <Group>
+            {canScan && <Row icon="scan" color="var(--accent-fill)" title="Scan a receipt" onClick={startScan} />}
+            <Row icon="photo" color="#0a84ff" title="Choose a photo" onClick={() => photoInput.current?.click()} />
+            <Row icon="pencil" color="#ff9500" title="Type it in" onClick={startManual} />
+          </Group>
+          <button className="btn btn-plain btn-wide" onClick={() => setAdding(false)}>
+            Cancel
+          </button>
         </Sheet>
       )}
 
       {prompt === 'reminders' && (
-        <Sheet title="Want a reminder before this runs out?" onClose={() => setPrompt(null)}>
-          <p className="sheet-text">You’ll get a notification 30 days, 7 days and 1 day before a warranty ends. You can change this in Settings.</p>
+        <Sheet title="Want a reminder before this runs out?" message="You’ll get a notification 30 days, 7 days and 1 day before a warranty ends. You can change this in Settings." onClose={() => setPrompt(null)}>
           <button
             className="btn btn-primary btn-wide"
             onClick={async () => {
               setPrompt(null);
               if ((await askForReminders()) === 'granted') {
                 syncReminders(getState().items, getState().settings);
-                notify('Reminders are on');
+                notify('Reminders are on', true);
               }
             }}
           >
             Turn on reminders
           </button>
           <button
-            className="btn btn-quiet btn-wide"
+            className="btn btn-plain btn-wide"
             onClick={() => {
               setPrompt(null);
               updateSettings({ remindersOn: false });
@@ -311,8 +340,7 @@ export default function App() {
       )}
 
       {prompt === 'camera' && (
-        <Sheet title="The camera is switched off" onClose={() => setPrompt(null)}>
-          <p className="sheet-text">To scan receipts, allow camera access for {APP_NAME} in iPhone Settings. You can also choose a photo instead.</p>
+        <Sheet title="The camera is switched off" message={`To scan receipts, allow camera access for ${APP_NAME} in iPhone Settings. You can also choose a photo instead.`} onClose={() => setPrompt(null)}>
           <button
             className="btn btn-primary btn-wide"
             onClick={() => {
@@ -322,7 +350,7 @@ export default function App() {
           >
             Open Settings
           </button>
-          <button className="btn btn-quiet btn-wide" onClick={() => setPrompt(null)}>
+          <button className="btn btn-plain btn-wide" onClick={() => setPrompt(null)}>
             Not now
           </button>
         </Sheet>
@@ -330,8 +358,8 @@ export default function App() {
 
       {photo && (
         <div className="viewer" role="dialog" aria-modal="true" aria-label="Receipt photo">
-          <button className="iconbtn viewer-close" onClick={() => setPhoto(null)} aria-label="Close">
-            <Icon name="close" />
+          <button className="viewer-close" onClick={() => setPhoto(null)} aria-label="Close">
+            <Icon name="close" size={18} weight={2.6} />
           </button>
           <div className="viewer-scroll">
             <img src={photo} alt="Receipt" />
@@ -340,16 +368,17 @@ export default function App() {
       )}
 
       {busy && (
-        <div className="busy" role="status">
+        <div className="hud" role="status">
           <span className="spinner" />
           {busy}
         </div>
       )}
       {toast && (
-        <div className="toast" role="status">
-          {toast}
+        <div className={`toast${toast.good ? ' is-good' : ''}`} role="status">
+          {toast.good && <Icon name="check" size={16} weight={3} />}
+          {toast.message}
         </div>
       )}
-    </>
+    </div>
   );
 }

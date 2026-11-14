@@ -17,7 +17,7 @@ const result = await esbuild.build({
   nodePaths: [tools], define: { 'process.env.NODE_ENV': '"production"' }, logLevel: 'warning',
   alias: {
     '@capacitor/core': mock('core.js'), '@capacitor/filesystem': mock('filesystem.js'),
-    '@capacitor/local-notifications': mock('local-notifications.js'), '@capacitor/share': mock('share.js'),
+    '@capacitor/local-notifications': mock('local-notifications.js'), '@capacitor/share': mock('share.js'), '@capacitor/haptics': mock('haptics.js'),
   },
 });
 const js = result.outputFiles.find((f) => f.path.endsWith('.js')).text.replace(/<\/script/gi, '<\\/script');
@@ -28,10 +28,12 @@ const darkVars = /@media\s*\(prefers-color-scheme:\s*dark\)\s*\{\s*:root\s*\{([^
 if (!darkVars) throw new Error('dark palette not found in CSS');
 css = css.replace(darkVars[0], `@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){${darkVars[1]};color-scheme:dark}}:root[data-theme="dark"]{${darkVars[1]};color-scheme:dark}:root[data-theme="light"]{color-scheme:light}`);
 css += `
-.demo-bar{display:flex;align-items:center;gap:12px;padding:10px 20px;background:var(--blue-wash);color:var(--ink);font-size:14px;line-height:1.35}
+.demo-bar{position:fixed;z-index:60;top:0;left:0;right:0;height:54px;display:flex;align-items:center;gap:10px;padding:0 14px;background:#1c1c1e;color:#fff;font-size:12.500px;line-height:1.3}
 .demo-bar p{flex:1;min-width:0;margin:0}
-.demo-bar button{flex:none;min-height:36px;padding:0 12px;border-radius:10px;border:1.5px solid var(--line);background:var(--card);font-size:14px;font-weight:600;color:var(--ink)}
-.demo-note{position:fixed;z-index:50;left:50%;transform:translateX(-50%);top:calc(env(safe-area-inset-top,0px) + 16px);max-width:calc(100% - 32px);padding:12px 16px;border-radius:14px;background:var(--ink);color:var(--paper);font-size:15px;font-weight:500;text-align:center}
+.demo-bar button{flex:none;min-height:32px;padding:0 12px;border-radius:16px;background:rgba(255,255,255,.16);font-size:13px;font-weight:600;color:#fff}
+.app,.boot,.welcome,.lock{top:54px}
+.toast{top:calc(var(--safe-top) + 64px)}
+.demo-note{position:fixed;z-index:70;left:50%;transform:translateX(-50%);top:64px;max-width:calc(100% - 32px);padding:10px 16px;border-radius:22px;background:var(--toast);color:#fff;font-size:15px;font-weight:600;text-align:center}
 `;
 
 fs.mkdirSync(out, { recursive: true });
