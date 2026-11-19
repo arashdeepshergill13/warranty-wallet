@@ -49,9 +49,54 @@ replaceImages('Splash.imageset', 'splash.png', 'Launch image');
 
 const manifest = path.join(app, 'PrivacyInfo.xcprivacy');
 if (!fs.existsSync(manifest)) fs.copyFileSync(path.join(root, 'resources/PrivacyInfo.xcprivacy'), manifest);
-const linked = fs.existsSync(project) && fs.readFileSync(project, 'utf8').includes('PrivacyInfo.xcprivacy');
-console.log(
-  linked
-    ? '  Privacy manifest: in place'
-    : '  Privacy manifest: copied to ios/App/App/PrivacyInfo.xcprivacy.\n    >>> One manual step: in Xcode, drag that file into the "App" folder in the left sidebar\n    >>> and tick the "App" target. See docs/APP_STORE_LAUNCH.md, step 2.'
+
+// Data Protection: receipt files stay encrypted whenever the phone is locked.
+fs.writeFileSync(
+  path.join(app, 'App.entitlements'),
+  `<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>com.apple.developer.default-data-protection</key>
+	<string>NSFileProtectionComplete</string>
+</dict>
+</plist>
+`
 );
+
+// Link the privacy manifest and entitlements into the App target, keep the app
+// off Mac and Vision Pro, and match the version to src/lib/config.js.
+if (fs.existsSync(project)) {
+  let pbx = fs.readFileSync(project, 'utf8');
+  const PRIV_REF = 'B4C7ED0A2F10000100000001';
+  const PRIV_BUILD = 'B4C7ED0A2F10000100000002';
+  const ENT_REF = 'B4C7ED0A2F10000100000003';
+  const insertBefore = (marker, text) => {
+    if (!pbx.includes(marker)) throw new Error(`project.pbxproj: "${marker}" not found`);
+    pbx = pbx.replace(marker, text + marker);
+  };
+  if (!pbx.includes('PrivacyInfo.xcprivacy')) {
+    insertBefore('/* End PBXBuildFile section */', `\t\t${PRIV_BUILD} /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = ${PRIV_REF} /* PrivacyInfo.xcprivacy */; };\n`);
+    insertBefore('/* End PBXFileReference section */', `\t\t${PRIV_REF} /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; lastKnownFileType = text.xml; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };\n`);
+    pbx = pbx.replace(/(\/\* public \*\/,\n)(\t+\);\n\t+path = App;)/, `$1\t\t\t\t${PRIV_REF} /* PrivacyInfo.xcprivacy */,\n$2`);
+    pbx = pbx.replace(/(\/\* config\.xml in Resources \*\/,\n)(\t+\);)/, `$1\t\t\t\t${PRIV_BUILD} /* PrivacyInfo.xcprivacy in Resources */,\n$2`);
+  }
+  if (!pbx.includes('App.entitlements')) {
+    insertBefore('/* End PBXFileReference section */', `\t\t${ENT_REF} /* App.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = App.entitlements; sourceTree = "<group>"; };\n`);
+    pbx = pbx.replace(/(\/\* public \*\/,\n)(\t+(?:[A-F0-9]{24} \/\* PrivacyInfo\.xcprivacy \*\/,\n\t+)?\);\n\t+path = App;)/, `$1\t\t\t\t${ENT_REF} /* App.entitlements */,\n$2`);
+  }
+  const setting = (key, value) => {
+    const line = new RegExp(`\\t+${key} = [^;]+;\\n`, 'g');
+    pbx = pbx.replace(line, '');
+    pbx = pbx.replace(/(\t+)CODE_SIGN_STYLE = Automatic;\n/g, `$1${key} = ${value};\n$1CODE_SIGN_STYLE = Automatic;\n`);
+  };
+  const { APP_VERSION } = await import(path.join(root, 'src/lib/config.js'));
+  setting('CODE_SIGN_ENTITLEMENTS', 'App/App.entitlements');
+  setting('SUPPORTS_MACCATALYST', 'NO');
+  setting('SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD', 'NO');
+  setting('SUPPORTS_XR_DESIGNED_FOR_IPHONE_IPAD', 'NO');
+  pbx = pbx.replace(/MARKETING_VERSION = [^;]+;/g, `MARKETING_VERSION = ${APP_VERSION};`);
+  fs.writeFileSync(project, pbx);
+  const linked = pbx.includes('PrivacyInfo.xcprivacy in Resources') && pbx.includes('App/App.entitlements');
+  console.log(linked ? '  Project: privacy manifest, Data Protection, iPhone only, version ' + APP_VERSION : '  Project: could not link the privacy manifest; add it in Xcode (docs/APP_STORE_LAUNCH.md, step 2)');
+}

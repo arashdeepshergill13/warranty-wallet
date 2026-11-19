@@ -37,8 +37,8 @@ git add -A && git commit -m "Add iOS project" && git push
 1. In the left sidebar click the blue **App** icon at the top, then the **App** target, then the **Signing & Capabilities** tab.
 2. Tick **Automatically manage signing** and pick your name under **Team**.
 3. **Bundle Identifier** is `com.arashdeepshergill.backed`. Keep it or change it now; it can never change after the first upload. If you change it, change `appId` in `capacitor.config.json` to match.
-4. Click **+ Capability**, choose **Data Protection**. Leave it on "Complete Protection". This keeps the receipt files encrypted whenever the phone is locked.
-5. Privacy manifest: if the setup script printed "One manual step", drag `ios/App/App/PrivacyInfo.xcprivacy` from Finder into the **App** folder in Xcode's sidebar and tick the **App** target in the dialog.
+4. Data Protection (receipt files stay encrypted while the phone is locked), the privacy manifest, iPhone-only and the version number are set by the setup script. Nothing to do here.
+5. If Xcode shows "Revoke certificate" under Status, click it once: it means an old development certificate's key is missing from this Mac.
 6. Plug in your iPhone, pick it in the device menu at the top, and press the Run button. The first time, the phone asks you to trust the developer in Settings > General > VPN & Device Management.
 
 If Xcode shows a red build error, copy the message and send it to Claude. The Swift file in `plugins/wallet-native` was written against Apple's documented APIs but could not be compiled on the machine that wrote it, so this first build is its real test.
