@@ -1,0 +1,27 @@
+Backed is a receipt and warranty tracker that works entirely on the iPhone. There is no account, no server and no network access.
+
+1. SCREEN RECORDING
+Recorded on a physical iPhone 15 Pro Max running the latest iOS, starting from launching the app: [VIDEO LINK]
+The app has no account registration, login, user-generated content or paid content, so none appear in the recording.
+
+2. PURPOSE AND AUDIENCE
+Backed is for anyone who buys things that come with a warranty, such as electronics, appliances and tools. People lose paper receipts and forget when warranties end, so they miss claims they were entitled to. In Backed you scan a receipt once; the app reads the store, purchase date, items, price and serial number on the device, keeps the receipt photo, shows how long each item is still covered, and sends a local reminder before the warranty ends. When something breaks, the receipt photo and purchase details can be shared in one tap as proof of purchase.
+
+3. HOW TO USE THE APP
+- No login or credentials are needed. Open the app and tap "Get started".
+- Tap "Add receipt", then "Scan a receipt" (system document scanner), "Choose a photo" (a receipt image from Photos) or "Type it in" (enter an item by hand).
+- Sample receipt you can scan from another screen, or save to Photos and use with "Choose a photo": https://raw.githubusercontent.com/arashdeepshergill13/warranty-wallet/app-store-listing/docs/app-store/sample-receipt.jpg
+- Check the details read from the receipt and tap Save. The app then offers warranty reminders (local notifications).
+- Tap an item to see the time left on its warranty, the receipt photo and "Share proof of purchase". Edit and Delete item are on the same screen.
+- Settings (top of the main screen): reminder timing, optional Face ID lock, back up and restore to a file, export a spreadsheet, and delete all data.
+
+4. EXTERNAL SERVICES
+None. The app uses no external services, data providers, authentication services, payment processors, analytics, advertising or AI services. All features use Apple frameworks on the device: VisionKit document camera (scanning), Vision (text recognition), LocalAuthentication (optional Face ID lock), UserNotifications (local reminders) and the system share sheet. The app's interface is bundled with the app, and its content security policy blocks all network connections. The only links that leave the app are the Help and Privacy Policy pages in Settings, which open in Safari.
+
+5. REGIONAL DIFFERENCES
+None. The app works the same in every region where it is offered. Users can choose their currency and date order (month first or day first) in Settings so receipts from their country are read correctly. The interface is in English.
+
+6. REGULATED INDUSTRY OR THIRD-PARTY MATERIAL
+Not applicable. Backed is not in a regulated industry and contains no third-party or licensed content. Warranty lengths the app suggests are labelled as estimates.
+
+Permissions: the camera is used only for the document scanner, Face ID only for the optional app lock, and notifications only for reminders the user turns on.
