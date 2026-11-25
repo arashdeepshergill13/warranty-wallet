@@ -15,6 +15,8 @@ const TOTAL_RE = /\b(grand\s*total|total\s*due|amount\s*due|balance\s*due|total|
 const NOT_TOTAL_RE = /(sub\s*-?\s*total|total\s*(tax|sav|item|number|disc|point|qty)|items?\s*sold|you\s*sav|tax\s*total|saved)/i;
 const SKIP_ITEM_RE = /\b(sub\s*-?\s*total|subtotal|total|tax|hst|gst|pst|qst|tvq|tps|vat|tend|tender|change|cash|visa|master\s*card|mastercard|amex|american\s*express|debit|interac|balance|saved|savings|you\s*save|discount|coupon|points|approved|auth|authorization|amount|tip|gratuity|deposit|rounding|payment|refund|purchase)\b/i;
 const NOT_AN_ITEM_RE = /(\d{3}[\s.-]\d{3}[\s.-]\d{4}|www\.|\.com|@|#\s*:?\s*\d)/i;
+const NOT_A_PRODUCT_RE = /^\s*(sku|s\/n|sn|serial|upc|ean|model|mfr|part|item\s*(no|#)|ref|sale|sales|return|refund|exchange|receipt|transaction)\b/i;
+const NEGATIVE_RE = /(-\s?\$?\s?\d[\d, ]*[.,]\d{2}\s*[A-Z]{0,3}\W*$)|(\d[.,]\d{2}\s?-\s*[A-Z]{0,3}$)/;
 const NOT_A_NAME_RE = /(\d{3}[\s.-]\d{3}[\s.-]\d{4}|\b\d{5}(-\d{4})?\b|\b[A-Z]\d[A-Z]\s?\d[A-Z]\d\b|www\.|\.com|\.ca\b|@|\b(st|ave|avenue|street|blvd|road|rd|drive|dr|hwy|suite|unit)\b\.?)/i;
 
 const RETAILERS = [
@@ -92,7 +94,54 @@ function unspace(text) {
   return text.replace(/\b(?:[A-Za-z] ){2,}[A-Za-z]\b/g, (m) => m.replace(/ /g, ''));
 }
 
+const quantile = (values, q) => {
+  const sorted = values.filter(Number.isFinite).sort((a, b) => a - b);
+  return sorted.length ? sorted[Math.min(sorted.length - 1, Math.floor(sorted.length * q))] : 0;
+};
+
+// Receipts are printed in columns: names start at the left margin and prices
+// end at the right one. Counts how many fragments line up on those two edges
+// when the photo is turned by `angle`.
+function alignment(pts, angle, tolerance) {
+  const sin = Math.sin(angle);
+  const cos = Math.cos(angle);
+  const column = (values) => {
+    values.sort((a, b) => a - b);
+    let best = 0;
+    for (let i = 0, j = 0; j < values.length; j++) {
+      while (values[j] - values[i] > tolerance) i += 1;
+      best = Math.max(best, j - i + 1);
+    }
+    return best;
+  };
+  const lefts = pts.map((p) => (p.cx - p.w / 2) * cos + p.cy * sin);
+  const rights = pts.map((p) => (p.cx + p.w / 2) * cos + p.cy * sin);
+  return column(lefts) + column(rights);
+}
+
+// A receipt photographed at a slight angle puts each price a little above or
+// below its item name, so straighten the fragments before pairing them. Uses
+// the angle text recognition measured when it has one, and otherwise tries
+// small turns and keeps the one that lines the margins up best.
+function skewOf(pts, textHeight) {
+  const tolerance = textHeight * 0.4;
+  let best = { angle: 0, score: -Infinity };
+  for (let deg = -8; deg <= 8.001; deg += 0.2) {
+    const angle = (deg * Math.PI) / 180;
+    const score = alignment(pts, angle, tolerance) - Math.abs(deg) * 0.01;
+    if (score > best.score) best = { angle, score };
+  }
+  const measured = pts.filter((p) => p.angle !== null && p.w > 0).sort((a, b) => b.w - a.w);
+  if (measured.length >= 3) {
+    const angle = quantile(measured.slice(0, Math.max(3, Math.ceil(measured.length / 2))).map((p) => p.angle), 0.5);
+    if (Math.abs(angle) < 0.35 && alignment(pts, angle, tolerance) >= best.score - 1) return angle;
+  }
+  return best.angle;
+}
+
 // lines: [{ text, x, y, w, h }] with coordinates from 0 to 1, origin top-left.
+// On the iPhone each line also carries the image size in pixels (iw, ih), the
+// angle of its baseline and its text height (th) in pixels.
 // Text recognition returns the item name and its price as separate fragments;
 // this puts fragments that sit on the same printed line back together.
 export function buildRows(lines) {
@@ -103,25 +152,45 @@ export function buildRows(lines) {
   const hasGeometry = clean.every((l) => Number.isFinite(l.y) && Number.isFinite(l.h) && Number.isFinite(l.x));
   if (!hasGeometry) return clean.map((l) => unspace(l.text.trim()));
 
-  const heights = clean.map((l) => l.h).sort((a, b) => a - b);
-  const median = heights[Math.floor(heights.length / 2)] || 0.01;
-  const sorted = [...clean].sort((a, b) => a.y + a.h / 2 - (b.y + b.h / 2));
+  const pts = clean.map((l) => {
+    const iw = Number(l.iw) > 0 ? Number(l.iw) : 1000;
+    const ih = Number(l.ih) > 0 ? Number(l.ih) : 1000;
+    const w = Number.isFinite(l.w) ? l.w : 0;
+    return {
+      text: l.text.trim(),
+      cx: (l.x + w / 2) * iw,
+      cy: (l.y + l.h / 2) * ih,
+      w: w * iw,
+      h: Number(l.th) > 0 ? Number(l.th) : l.h * ih,
+      angle: Number.isFinite(l.angle) ? l.angle : null,
+    };
+  });
+  // A tilted line's box is taller than its text, so take a low-ish height.
+  const textHeight = quantile(pts.map((p) => p.h), 0.35) || 10;
+  const angle = pts.length > 2 ? skewOf(pts, textHeight) : 0;
+  const sin = Math.sin(angle);
+  const cos = Math.cos(angle);
+  for (const p of pts) {
+    p.rx = p.cx * cos + p.cy * sin;
+    p.ry = -p.cx * sin + p.cy * cos;
+  }
+
+  const sorted = [...pts].sort((a, b) => a.ry - b.ry);
   const rows = [];
-  for (const line of sorted) {
-    const cy = line.y + line.h / 2;
+  for (const p of sorted) {
     const row = rows[rows.length - 1];
-    if (row && Math.abs(cy - row.cy) < median * 0.6) {
-      row.parts.push(line);
-      row.cy = (row.cy * (row.parts.length - 1) + cy) / row.parts.length;
+    if (row && Math.abs(p.ry - row.cy) < textHeight * 0.6) {
+      row.parts.push(p);
+      row.cy = (row.cy * (row.parts.length - 1) + p.ry) / row.parts.length;
     } else {
-      rows.push({ cy, parts: [line] });
+      rows.push({ cy: p.ry, parts: [p] });
     }
   }
   return rows.map((row) =>
     unspace(
       row.parts
-        .sort((a, b) => a.x - b.x)
-        .map((p) => p.text.trim())
+        .sort((a, b) => a.rx - b.rx)
+        .map((p) => p.text)
         .join('  ')
     )
   );
@@ -258,6 +327,8 @@ function findItems(rows) {
       }
     }
     if (name === null) continue;
+    if (NOT_A_PRODUCT_RE.test(name)) continue; // "SKU 6551204", "S/N ...", a "SALE" heading
+    if (NEGATIVE_RE.test(same ? row : region[i] || '')) continue; // discounts and refunds
     const cleaned = cleanItemName(name);
     if (letterCount(cleaned) < 3 || price <= 0) continue;
     items.push({ name: cleaned.slice(0, 80), price });

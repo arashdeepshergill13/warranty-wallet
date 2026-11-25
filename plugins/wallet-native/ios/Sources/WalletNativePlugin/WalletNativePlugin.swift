@@ -171,17 +171,31 @@ public class WalletNativePlugin: CAPPlugin, CAPBridgedPlugin, VNDocumentCameraVi
             return []
         }
         guard let observations = request.results else { return [] }
+        let width = Double(cgImage.width)
+        let height = Double(cgImage.height)
         var lines: [[String: Any]] = []
         for observation in observations {
             guard let best = observation.topCandidates(1).first else { continue }
             let box = observation.boundingBox
+            // The corners follow the text even when the photo is tilted. Measure the
+            // baseline's angle and the text height in pixels, top-left origin.
+            let bl = observation.bottomLeft
+            let br = observation.bottomRight
+            let tl = observation.topLeft
+            let dx = Double(br.x - bl.x) * width
+            let dy = Double(bl.y - br.y) * height
+            let textHeight = hypot(Double(tl.x - bl.x) * width, Double(tl.y - bl.y) * height)
             lines.append([
                 "text": best.string,
                 "confidence": Double(best.confidence),
                 "x": Double(box.minX),
                 "y": Double(1 - box.maxY),
                 "w": Double(box.width),
-                "h": Double(box.height)
+                "h": Double(box.height),
+                "iw": width,
+                "ih": height,
+                "angle": atan2(dy, dx),
+                "th": textHeight
             ])
         }
         return lines

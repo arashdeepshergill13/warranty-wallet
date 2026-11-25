@@ -206,3 +206,92 @@ test('warranty maths', () => {
   ).map((i) => i.id);
   assert.deepEqual(order, ['soon', 'healthy', 'none', 'expired']);
 });
+
+// The Lumen & Wire sample receipt: item names on the left, prices on the right,
+// as separate fragments, photographed tilted the way people really hold a phone.
+const LUMEN_ROWS = [
+  ['LUMEN & WIRE'],
+  ['1840 HARBOUR WAY, UNIT 12'],
+  ['TEL (905) 555-0148'],
+  ['STORE 0412    REG 03    TRANS 20871'],
+  ['CASHIER: MAYA R.', '11/22/2026  14:41'],
+  ['SALE'],
+  ['65IN 4K UHD SMART TV', '1,099.99'],
+  ['    SKU 6551204'],
+  ['    S/N 4K9TQ2M01187'],
+  ['WIRELESS NC HEADPHONES BLK', '329.99'],
+  ['    SKU 4418021'],
+  ['    S/N SX9W4021557'],
+  ['  INSTANT SAVINGS', '-50.00'],
+  ['HDMI 2.1 CABLE 2M', '24.99'],
+  ['    SKU 7720310'],
+  ['TILT WALL MOUNT 40-75IN', '79.99'],
+  ['    SKU 3390082'],
+  ['SUBTOTAL', '1,484.96'],
+  ['HST 13%', '193.04'],
+  ['TOTAL', '$1,678.00'],
+  ['VISA', '1,678.00'],
+  ['65IN UHD TV: 1 YEAR MANUFACTURER WARRANTY'],
+];
+
+// Lays the fragments out on a 1000 x 2000 px photo, turns them by `degrees`
+// and returns what text recognition reports: axis-aligned boxes from 0 to 1.
+function photographed(rows, degrees, { withAngle = false } = {}) {
+  const W = 1000, H = 2000, a = (degrees * Math.PI) / 180;
+  const charW = 15, textH = 26, pitch = 40, left = 150, right = 850, top = 300;
+  const out = [];
+  rows.forEach((parts, i) => {
+    parts.forEach((text, j) => {
+      const w = text.trim().length * charW;
+      const indent = text.length - text.trimStart().length;
+      const x0 = j === 0 ? left + indent * charW : right - w;
+      const y0 = top + i * pitch;
+      const corners = [[x0, y0], [x0 + w, y0], [x0 + w, y0 + textH], [x0, y0 + textH]].map(([x, y]) => {
+        const dx = x - W / 2, dy = y - H / 2;
+        return [W / 2 + dx * Math.cos(a) - dy * Math.sin(a), H / 2 + dx * Math.sin(a) + dy * Math.cos(a)];
+      });
+      const xs = corners.map((c) => c[0]), ys = corners.map((c) => c[1]);
+      const line = {
+        text: text.trim(),
+        x: Math.min(...xs) / W, y: Math.min(...ys) / H,
+        w: (Math.max(...xs) - Math.min(...xs)) / W, h: (Math.max(...ys) - Math.min(...ys)) / H,
+        iw: W, ih: H,
+      };
+      if (withAngle) Object.assign(line, { angle: a, th: textH });
+      out.push(line);
+    });
+  });
+  return out;
+}
+
+for (const [label, degrees, opts] of [
+  ['straight', 0, {}],
+  ['tilted 3 degrees clockwise', 3.2, {}],
+  ['tilted 4 degrees anticlockwise', -4, {}],
+  ['tilted, with the angle measured on the phone', 3.2, { withAngle: true }],
+]) {
+  test(`a receipt photo ${label} pairs every price with its item`, () => {
+    const r = parseReceipt(photographed(LUMEN_ROWS, degrees, opts), { order: 'MDY', today: '2026-11-25' });
+    assert.equal(r.storeName, 'Lumen & Wire');
+    assert.equal(r.purchaseDate, '2026-11-22');
+    assert.equal(r.productName, '65IN 4K UHD Smart TV');
+    assert.equal(r.price, 1099.99);
+    assert.equal(r.total, 1678);
+    assert.deepEqual(r.items.map((i) => [i.name, i.price]), [
+      ['65IN 4K UHD Smart TV', 1099.99],
+      ['Wireless NC Headphones BLK', 329.99],
+      ['HDMI 2.1 Cable 2M', 24.99],
+      ['Tilt Wall Mount 40-75IN', 79.99],
+    ]);
+    assert.equal(r.category, 'electronics');
+    assert.equal(r.serialNumber, '4K9TQ2M01187');
+    assert.equal(r.warrantyMonths, 12);
+    assert.equal(r.warrantyEstimated, false);
+  });
+}
+
+test('serial numbers, SKUs, headings and discounts are never offered as items', () => {
+  const rows = ['SALE', '1,099.99', 'S/N 4K9TQ2M01187', '329.99', 'SKU 7720310', '79.99', 'INSTANT REBATE', '-50.00', 'TOTAL', '1,358.98'];
+  const r = parseReceipt(rows, { today: '2026-11-25' });
+  assert.deepEqual(r.items, []);
+});
